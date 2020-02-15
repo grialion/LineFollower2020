@@ -6,11 +6,12 @@
  */
 
 #include <Arduino.h>
+#include <FTDebouncer.h>
 
 #define PIN_LED PC13
 
-#define PIN_ULTRASONIC_TRIG PB4
-#define PIN_ULTRASONIC_ECHO PB3
+#define PIN_ULTRASONIC_TRIG PA7
+#define PIN_ULTRASONIC_ECHO PA6
 #define ULTRASONIC_TIMEOUT_MICROS 2500
 
 #define PIN_L2 PA0
@@ -19,14 +20,21 @@
 #define PIN_R1 PA3
 #define PIN_R2 PA4
 
-#define PIN_MOTOR_LEFT_FWD PB1
-#define PIN_MOTOR_RIGHT_FWD PB0
-//#define PIN_MOTOR_B1 PA7
-//#define PIN_MOTOR_B2 PA6
-#define MOTOR_MIN_SPEED 60
+#define PIN_MOTOR_LEFT_FWD PB7
+#define PIN_MOTOR_LEFT_BWD PB6
+#define PIN_MOTOR_RIGHT_FWD PB8
+#define PIN_MOTOR_RIGHT_BWD PB9
+
+#define MOTOR_MIN_SPEED 30
 #define MOTOR_SPEED_SLOW 90
 
 #define PIN_BUTTON PB12
+
+// States
+#define LIFECYCLE_STATE_READY 0
+#define LIFECYCLE_STATE_RUNNING 1
+
+FTDebouncer pinDebouncer;
 
 float getUltrasonicDistance();
 void sendTrigger();
@@ -34,17 +42,23 @@ void goRight(int val);
 void goLeft(int val);
 unsigned long pingStarted = 0;
 volatile unsigned long echoReceived = 0;
+int rightMotorValue = 0;
+int leftMotorValue = 0;
+
+byte liefcycleState = LIFECYCLE_STATE_READY;
 
 void setup()
 {
-  // put your setup code here, to run once:
-//  Serial.begin(19200);
   Serial.begin(115200);
-  delay(100);
+  while(!Serial.availableForWrite())
+  {
+    delay(10);
+  }
   Serial.println();
-  Serial.println("Startup.");
+  Serial.println(F("Starting up..."));
 
-  pinMode(PIN_BUTTON, INPUT);
+//  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  pinDebouncer.addPin(PIN_BUTTON, HIGH, INPUT_PULLUP);
   pinMode(PIN_L2, INPUT);
   pinMode(PIN_L1, INPUT);
   pinMode(PIN_MD, INPUT);
@@ -58,53 +72,62 @@ void setup()
   pinMode(PIN_ULTRASONIC_ECHO, INPUT);
 
   pinMode(PIN_MOTOR_LEFT_FWD, OUTPUT);
+  pinMode(PIN_MOTOR_LEFT_BWD, OUTPUT);
   pinMode(PIN_MOTOR_RIGHT_FWD, OUTPUT);
+  pinMode(PIN_MOTOR_RIGHT_BWD, OUTPUT);
 
   analogWriteFrequency(500);
 
+  pinDebouncer.init();
   Serial.println("Ready.");
 }
 
 void loop()
 {
+  pinDebouncer.run();
+  if (liefcycleState != LIFECYCLE_STATE_RUNNING)
+  {
+    return;
+  }
+
+  // Read line sensors
   bool isToRight = digitalRead(PIN_L1);
   bool isToLeft = digitalRead(PIN_R1);
-  if (isToRight)
+  if (isToLeft)
+  {
+    // Right side has priority.
+    goLeft(MOTOR_SPEED_SLOW);
+    goRight(MOTOR_MIN_SPEED);
+//Serial.print("R");
+  }
+  else if (isToRight)
   {
     goLeft(MOTOR_MIN_SPEED);
     goRight(MOTOR_SPEED_SLOW);
-Serial.print("L");
-  }
-  else if (isToLeft)
-  {
-    goLeft(MOTOR_SPEED_SLOW);
-    goRight(MOTOR_MIN_SPEED);
-Serial.print("R");
+//Serial.print("L");
   }
   else
   {
     goLeft(MOTOR_SPEED_SLOW);
     goRight(MOTOR_SPEED_SLOW);
-Serial.print("=");
+//Serial.print("=");
   }
 }
 
-int valRight = 999;
 void goRight(int val)
 {
-  if (val != valRight)
+  if (val != rightMotorValue)
   {
     analogWrite(PIN_MOTOR_RIGHT_FWD, val);
-    valRight = val;
+    rightMotorValue = val;
   }
 }
-int valLeft = 999;
 void goLeft(int val)
 {
-  if (val != valLeft)
+  if (val != leftMotorValue)
   {
     analogWrite(PIN_MOTOR_LEFT_FWD, val);
-    valLeft = val;
+    leftMotorValue = val;
   }
 }
 
@@ -164,4 +187,26 @@ void sendTrigger()
   digitalWrite(PIN_ULTRASONIC_TRIG, LOW);
   echoReceived = 0;
   pingStarted = micros();
+}
+
+// -- When Start/Stop button pressed
+void onButtonPressed(uint8_t pinNr)
+{
+	if (liefcycleState == LIFECYCLE_STATE_READY)
+  {
+    Serial.println(F("Start"));
+    liefcycleState = LIFECYCLE_STATE_RUNNING;
+  }
+	else if (liefcycleState == LIFECYCLE_STATE_RUNNING)
+  {
+    goRight(0);
+    goLeft(0);
+    Serial.println(F("Stop"));
+    liefcycleState = LIFECYCLE_STATE_READY;
+  }
+}
+// -- When Start/Stop button released
+void onButtonReleased(uint8_t pinNr)
+{
+  // Not used
 }
