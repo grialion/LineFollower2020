@@ -9,6 +9,7 @@
             "includePath": [
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/include",
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/src",
+                "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer/src",
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Future Tailors_ Debouncer_ID1746/src",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/avr",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/stm32",
@@ -26,7 +27,6 @@
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/system/Drivers/CMSIS/Device/ST/STM32F1xx/Source/Templates/gcc",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/variants/PILL_F103XX",
-                "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer_ID633/src",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/EEPROM/src",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/IWatchdog/src",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/Keyboard/src",
@@ -43,6 +43,7 @@
                 "path": [
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/include",
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/src",
+                    "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer/src",
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Future Tailors_ Debouncer_ID1746/src",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/avr",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/stm32",
@@ -60,7 +61,6 @@
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/system/Drivers/CMSIS/Device/ST/STM32F1xx/Source/Templates/gcc",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/variants/PILL_F103XX",
-                    "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer_ID633/src",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/EEPROM/src",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/IWatchdog/src",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/libraries/Keyboard/src",

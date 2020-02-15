@@ -7,6 +7,8 @@
 
 #include <Arduino.h>
 #include <FTDebouncer.h>
+#include <SoftTimer.h>
+#include <BlinkTask.h>
 
 #define PIN_LED PC13
 
@@ -34,12 +36,16 @@
 #define LIFECYCLE_STATE_READY 0
 #define LIFECYCLE_STATE_RUNNING 1
 
-FTDebouncer pinDebouncer;
-
 float getUltrasonicDistance();
 void sendTrigger();
 void goRight(int val);
 void goLeft(int val);
+void doAlways(Task* me);
+
+FTDebouncer pinDebouncer;
+BlinkTask hartbeat(PIN_LED, 100, 300);
+Task alwaysTask(0, doAlways);
+
 unsigned long pingStarted = 0;
 volatile unsigned long echoReceived = 0;
 int rightMotorValue = 0;
@@ -65,8 +71,8 @@ void setup()
   pinMode(PIN_R1, INPUT);
   pinMode(PIN_R2, INPUT);
 
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
+//  pinMode(PIN_LED, OUTPUT);
+//  digitalWrite(PIN_LED, HIGH);
 
   pinMode(PIN_ULTRASONIC_TRIG, OUTPUT);
   pinMode(PIN_ULTRASONIC_ECHO, INPUT);
@@ -78,11 +84,14 @@ void setup()
 
   analogWriteFrequency(500);
 
+  hartbeat.onLevel = LOW;
+  hartbeat.start();
   pinDebouncer.init();
+  SoftTimer.add(&alwaysTask);
   Serial.println("Ready.");
 }
 
-void loop()
+void doAlways(Task* me)
 {
   pinDebouncer.run();
   if (liefcycleState != LIFECYCLE_STATE_RUNNING)
@@ -162,11 +171,12 @@ void testUltrasonic()
   Serial.print(cm);
 
   Serial.println();
-
+/*
   digitalWrite(PIN_LED, LOW);
   delay(200);
   digitalWrite(PIN_LED, HIGH);
   delay(200);
+  */
 }
 
 float getUltrasonicDistance()
@@ -196,6 +206,8 @@ void onButtonPressed(uint8_t pinNr)
   {
     Serial.println(F("Start"));
     liefcycleState = LIFECYCLE_STATE_RUNNING;
+    hartbeat.onMs = 100;
+    hartbeat.offMs = 100;
   }
 	else if (liefcycleState == LIFECYCLE_STATE_RUNNING)
   {
@@ -203,6 +215,8 @@ void onButtonPressed(uint8_t pinNr)
     goLeft(0);
     Serial.println(F("Stop"));
     liefcycleState = LIFECYCLE_STATE_READY;
+    hartbeat.onMs = 100;
+    hartbeat.offMs = 300;
   }
 }
 // -- When Start/Stop button released
