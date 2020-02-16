@@ -9,6 +9,7 @@
 #include <FTDebouncer.h>
 #include <SoftTimer.h>
 #include <BlinkTask.h>
+#include <Ramp.h>
 
 #define PIN_LED PC13
 
@@ -29,6 +30,7 @@
 
 #define MOTOR_MIN_SPEED 30
 #define MOTOR_SPEED_SLOW 90
+#define MOTOR_RAMP_TIME_MS 100
 
 #define PIN_BUTTON PB12
 
@@ -38,6 +40,7 @@
 
 float getUltrasonicDistance();
 void sendTrigger();
+void doRamp();
 void goRight(int val);
 void goLeft(int val);
 void doAlways(Task* me);
@@ -48,8 +51,12 @@ Task alwaysTask(0, doAlways);
 
 unsigned long pingStarted = 0;
 volatile unsigned long echoReceived = 0;
-int rightMotorValue = 0;
-int leftMotorValue = 0;
+rampInt rightMotorRamp;
+rampInt leftMotorRamp;
+int rightMotorTargetValue = 0;
+int leftMotorTargetValue = 0;
+int rightMotorActualValue = 0;
+int leftMotorActualValue = 0;
 
 byte liefcycleState = LIFECYCLE_STATE_READY;
 
@@ -93,7 +100,10 @@ void setup()
 
 void doAlways(Task* me)
 {
+//  unsigned long start = millis();
   pinDebouncer.run();
+  doRamp();
+
   if (liefcycleState != LIFECYCLE_STATE_RUNNING)
   {
     return;
@@ -121,22 +131,61 @@ void doAlways(Task* me)
     goRight(MOTOR_SPEED_SLOW);
 //Serial.print("=");
   }
+//  unsigned long end = millis();
+//  Serial.print("Loop time: ");
+//  Serial.println(end - start);
+}
+
+void doRamp()
+{
+  int rightVal = rightMotorRamp.update();
+  if (rightVal != rightMotorActualValue)
+  {
+    analogWrite(PIN_MOTOR_RIGHT_FWD, rightVal);
+    rightMotorActualValue = rightVal;
+  }
+  int leftVal = leftMotorRamp.update();
+  if (leftVal != leftMotorActualValue)
+  {
+    analogWrite(PIN_MOTOR_LEFT_FWD, leftVal);
+    leftMotorActualValue = leftVal;
+  }
 }
 
 void goRight(int val)
 {
-  if (val != rightMotorValue)
+  if (val != rightMotorTargetValue)
   {
-    analogWrite(PIN_MOTOR_RIGHT_FWD, val);
-    rightMotorValue = val;
+    if (val < rightMotorTargetValue)
+    {
+      // De-accelerating
+      rightMotorRamp.go(val, MOTOR_RAMP_TIME_MS, CUBIC_OUT);
+    }
+    else
+    {
+      // Accelerating
+      rightMotorRamp.go(val, MOTOR_RAMP_TIME_MS, CUBIC_IN);
+    }
+    
+    rightMotorTargetValue = val;
   }
 }
 void goLeft(int val)
 {
-  if (val != leftMotorValue)
+  if (val != leftMotorTargetValue)
   {
-    analogWrite(PIN_MOTOR_LEFT_FWD, val);
-    leftMotorValue = val;
+    if (val < leftMotorTargetValue)
+    {
+      // De-accelerating
+      leftMotorRamp.go(val, MOTOR_RAMP_TIME_MS, CUBIC_OUT);
+    }
+    else
+    {
+      // Accelerating
+      leftMotorRamp.go(val, MOTOR_RAMP_TIME_MS, CUBIC_IN);
+    }
+
+    leftMotorTargetValue = val;
   }
 }
 

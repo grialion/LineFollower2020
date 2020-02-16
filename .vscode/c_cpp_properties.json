@@ -9,6 +9,7 @@
             "includePath": [
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/include",
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/src",
+                "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Ramp_ID1834/src",
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer/src",
                 "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Future Tailors_ Debouncer_ID1746/src",
                 "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/avr",
@@ -43,6 +44,7 @@
                 "path": [
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/include",
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/src",
+                    "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Ramp_ID1834/src",
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/SoftTimer/src",
                     "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/libdeps/ststm32/Future Tailors_ Debouncer_ID1746/src",
                     "/Volumes/Data/ext/kelemenb/.platformio/packages/framework-arduinoststm32/cores/arduino/avr",
