@@ -29,6 +29,7 @@
 
 #define MOTOR_MIN_SPEED 30
 #define MOTOR_SPEED_SLOW 90
+#define MOTOR_SPEED_FAST 255
 
 #define PIN_BUTTON PB12
 
@@ -50,6 +51,8 @@ unsigned long pingStarted = 0;
 volatile unsigned long echoReceived = 0;
 int rightMotorValue = 0;
 int leftMotorValue = 0;
+bool rightFromTrack;
+bool leftFromTrack;
 
 byte liefcycleState = LIFECYCLE_STATE_READY;
 
@@ -100,25 +103,42 @@ void doAlways(Task* me)
   }
 
   // Read line sensors
-  bool isToRight = digitalRead(PIN_L1);
-  bool isToLeft = digitalRead(PIN_R1);
-  if (isToLeft)
+  bool onTrack = digitalRead(PIN_MD);
+  bool trackOnLeft = digitalRead(PIN_L1);
+  bool trackOnRight = digitalRead(PIN_R1);
+  if (onTrack)
+  {
+    if (trackOnLeft)
+    {
+      leftFromTrack = true;
+    }
+    else if (trackOnRight)
+    {
+      rightFromTrack = true;
+    }
+    else
+    {
+      rightFromTrack = false;
+      leftFromTrack = false;
+    }
+  }
+  if (rightFromTrack)
   {
     // Right side has priority.
-    goLeft(MOTOR_SPEED_SLOW);
-    goRight(MOTOR_MIN_SPEED);
+    goLeft(MOTOR_SPEED_FAST);
+    goRight(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
 //Serial.print("R");
   }
-  else if (isToRight)
+  else if (leftFromTrack)
   {
-    goLeft(MOTOR_MIN_SPEED);
-    goRight(MOTOR_SPEED_SLOW);
+    goLeft(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
+    goRight(MOTOR_SPEED_FAST);
 //Serial.print("L");
   }
   else
   {
-    goLeft(MOTOR_SPEED_SLOW);
-    goRight(MOTOR_SPEED_SLOW);
+    goLeft(MOTOR_SPEED_FAST);
+    goRight(MOTOR_SPEED_FAST);
 //Serial.print("=");
   }
 }
@@ -183,6 +203,11 @@ float getUltrasonicDistance()
 {
   sendTrigger();
   uint32_t duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, ULTRASONIC_TIMEOUT_MICROS);
+
+  if (duration == 0)
+  {
+    return 0.0;
+  }
 
   float cm = ((float)duration/2) / (float)29.1;
   return cm;
