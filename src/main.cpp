@@ -12,9 +12,10 @@
 
 #define PIN_LED PC13
 
-#define PIN_ULTRASONIC_TRIG PA7
-#define PIN_ULTRASONIC_ECHO PA6
-#define ULTRASONIC_TIMEOUT_MICROS 2500
+#define PIN_ULTRASONIC_TRIG PB11
+#define PIN_ULTRASONIC_ECHO PB10 // Must be 5V tolerant pin!
+//#define ULTRASONIC_TIMEOUT_MICROS 2500
+#define ULTRASONIC_TIMEOUT_MICROS 4000
 
 #define PIN_L2 PA0
 #define PIN_L1 PA2
@@ -37,22 +38,23 @@
 #define LIFECYCLE_STATE_READY 0
 #define LIFECYCLE_STATE_RUNNING 1
 
-float getUltrasonicDistance();
+int32_t getUltrasonicDistance();
+void echoChanged(void);
 void sendTrigger();
 void goRight(int val);
 void goLeft(int val);
 void doAlways(Task* me);
 
-FTDebouncer pinDebouncer;
+FTDebouncer pinDebouncer(100);
 BlinkTask hartbeat(PIN_LED, 100, 300);
 Task alwaysTask(0, doAlways);
 
-unsigned long pingStarted = 0;
-volatile unsigned long echoReceived = 0;
 int rightMotorValue = 0;
 int leftMotorValue = 0;
 bool rightFromTrack;
 bool leftFromTrack;
+bool objectInFront = false;
+volatile unsigned long echoChangedTime;
 
 byte liefcycleState = LIFECYCLE_STATE_READY;
 
@@ -90,16 +92,40 @@ void setup()
   hartbeat.onLevel = LOW;
   hartbeat.start();
   pinDebouncer.init();
+  attachInterrupt(PIN_ULTRASONIC_ECHO, echoChanged, CHANGE);
   SoftTimer.add(&alwaysTask);
   Serial.println("Ready.");
 }
 
 void doAlways(Task* me)
 {
+  int32_t distanceFromObject = getUltrasonicDistance();
+//  Serial.println(distanceFromObject);
+
   pinDebouncer.run();
   if (liefcycleState != LIFECYCLE_STATE_RUNNING)
   {
     return;
+  }
+
+
+  if (distanceFromObject > 0)
+  {
+    objectInFront = true;
+    hartbeat.onMs = 30;
+    hartbeat.offMs = 30;
+    if (distanceFromObject < 10)
+    {
+      goLeft(0);
+      goRight(0);
+      return;
+    }
+  }
+  else
+  {
+    objectInFront = false;
+    hartbeat.onMs = 100;
+    hartbeat.offMs = 100;
   }
 
   // Read line sensors
@@ -182,35 +208,50 @@ void testOpto()
   Serial.print(a4);
 }
 
-// test ultrasonic
-void testUltrasonic()
+int32_t getUltrasonicDistance()
 {
-  Serial.print(" ");
-
-  float cm = getUltrasonicDistance();
-  Serial.print(cm);
-
-  Serial.println();
-/*
-  digitalWrite(PIN_LED, LOW);
-  delay(200);
-  digitalWrite(PIN_LED, HIGH);
-  delay(200);
-  */
-}
-
-float getUltrasonicDistance()
-{
+//  attachInterrupt(PIN_ULTRASONIC_ECHO, echoChanged, CHANGE);
   sendTrigger();
-  uint32_t duration = pulseIn(PIN_ULTRASONIC_ECHO, HIGH, ULTRASONIC_TIMEOUT_MICROS);
 
-  if (duration == 0)
+  unsigned long startTime = micros();
+  unsigned long prevEchoChangedTime = echoChangedTime;
+
+  // TODO: might want to asynchronous working instead of using wait loops.
+  while(1)
   {
-    return 0.0;
+    if (prevEchoChangedTime != echoChangedTime)
+    {
+      break;
+    }
+    if ((micros()-startTime) > ULTRASONIC_TIMEOUT_MICROS)
+    {
+      return -1;
+    }
   }
 
-  float cm = ((float)duration/2) / (float)29.1;
-  return cm;
+  unsigned long frameStartBegins = prevEchoChangedTime = echoChangedTime;
+
+  while(1)
+  {
+    if (prevEchoChangedTime != echoChangedTime)
+    {
+      break;
+    }
+    if ((micros()-startTime) > ULTRASONIC_TIMEOUT_MICROS)
+    {
+      return -1;
+    }
+  }
+
+//  detachInterrupt(PIN_ULTRASONIC_ECHO);
+
+  long time = echoChangedTime - frameStartBegins;
+
+  return time / 59;
+}
+void echoChanged(void)
+{
+  echoChangedTime = micros();
 }
 
 void sendTrigger()
@@ -220,8 +261,6 @@ void sendTrigger()
   digitalWrite(PIN_ULTRASONIC_TRIG, HIGH);
   delayMicroseconds(10);
   digitalWrite(PIN_ULTRASONIC_TRIG, LOW);
-  echoReceived = 0;
-  pingStarted = micros();
 }
 
 // -- When Start/Stop button pressed
