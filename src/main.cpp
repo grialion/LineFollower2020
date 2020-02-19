@@ -17,6 +17,8 @@
 //#define ULTRASONIC_TIMEOUT_MICROS 2500
 #define ULTRASONIC_TIMEOUT_MICROS 4000
 
+#define PIN_BUTTON PB12
+
 #define PIN_L2 PA0
 #define PIN_L1 PA2
 #define PIN_MD PA1
@@ -31,21 +33,31 @@
 #define MOTOR_MIN_SPEED 30
 #define MOTOR_SPEED_SLOW 90
 #define MOTOR_SPEED_FAST 255
+#define SMALL_TURN_TIME_MS 100
 
-#define PIN_BUTTON PB12
-
-// States
+// States over lifetime
 #define LIFECYCLE_STATE_READY 0
 #define LIFECYCLE_STATE_RUNNING 1
+
+// States over track
+#define TRACK_STATE_NORMAL           0
+#define TRACK_STATE_OBJECT_IN_FRONT 10
+#define TRACK_STATE_BYPASS_START    20
+#define TRACK_STATE_BYPASS_STAGE1   21
+#define TRACK_STATE_BYPASS_STAGE2   22
+#define TRACK_STATE_BYPASS_STAGE3   23
+#define TRACK_STATE_CHANGE_L        31
+#define TRACK_STATE_CHANGE_R        32
 
 int32_t getUltrasonicDistance();
 void echoChanged(void);
 void sendTrigger();
 void goRight(int val);
 void goLeft(int val);
+void stop();
 void doAlways(Task* me);
 
-FTDebouncer pinDebouncer(100);
+FTDebouncer pinDebouncer(60);
 BlinkTask hartbeat(PIN_LED, 100, 300);
 Task alwaysTask(0, doAlways);
 
@@ -53,10 +65,13 @@ int rightMotorValue = 0;
 int leftMotorValue = 0;
 bool rightFromTrack;
 bool leftFromTrack;
-bool objectInFront = false;
+bool leftChangeLineMark = false;
+bool rightChangeLineMark = false;
 volatile unsigned long echoChangedTime;
+unsigned long startTime;
 
-byte liefcycleState = LIFECYCLE_STATE_READY;
+byte lifecycleState = LIFECYCLE_STATE_READY;
+byte trackState = TRACK_STATE_NORMAL;
 
 void setup()
 {
@@ -68,16 +83,15 @@ void setup()
   Serial.println();
   Serial.println(F("Starting up..."));
 
-//  pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinDebouncer.addPin(PIN_BUTTON, HIGH, INPUT_PULLUP);
+
   pinMode(PIN_L2, INPUT);
   pinMode(PIN_L1, INPUT);
   pinMode(PIN_MD, INPUT);
   pinMode(PIN_R1, INPUT);
   pinMode(PIN_R2, INPUT);
-
-//  pinMode(PIN_LED, OUTPUT);
-//  digitalWrite(PIN_LED, HIGH);
+  pinDebouncer.addPin(PIN_L2, HIGH, INPUT);
+  pinDebouncer.addPin(PIN_R2, HIGH, INPUT);
 
   pinMode(PIN_ULTRASONIC_TRIG, OUTPUT);
   pinMode(PIN_ULTRASONIC_ECHO, INPUT);
@@ -103,15 +117,15 @@ void doAlways(Task* me)
 //  Serial.println(distanceFromObject);
 
   pinDebouncer.run();
-  if (liefcycleState != LIFECYCLE_STATE_RUNNING)
+  if (lifecycleState != LIFECYCLE_STATE_RUNNING)
   {
     return;
   }
-
+  unsigned long now = millis();
 
   if (distanceFromObject > 0)
   {
-    objectInFront = true;
+    trackState = TRACK_STATE_OBJECT_IN_FRONT;
     hartbeat.onMs = 30;
     hartbeat.offMs = 30;
     if (distanceFromObject < 10)
@@ -123,9 +137,20 @@ void doAlways(Task* me)
   }
   else
   {
-    objectInFront = false;
+    trackState = TRACK_STATE_NORMAL;
     hartbeat.onMs = 100;
     hartbeat.offMs = 100;
+  }
+
+  // Check finnish line
+  if (rightChangeLineMark && leftChangeLineMark)
+  {
+    if ((now - startTime) > 3000)
+    {
+      Serial.println(F("Finnish line mark reached"));
+      stop();
+      return;
+    }
   }
 
   // Read line sensors
@@ -148,24 +173,58 @@ void doAlways(Task* me)
       leftFromTrack = false;
     }
   }
-  if (rightFromTrack)
-  {
-    // Right side has priority.
-    goLeft(MOTOR_SPEED_FAST);
-    goRight(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
-//Serial.print("R");
-  }
-  else if (leftFromTrack)
-  {
-    goLeft(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
-    goRight(MOTOR_SPEED_FAST);
-//Serial.print("L");
-  }
   else
   {
-    goLeft(MOTOR_SPEED_FAST);
-    goRight(MOTOR_SPEED_FAST);
-//Serial.print("=");
+    if (leftChangeLineMark)
+    {
+      goLeft(MOTOR_SPEED_SLOW);
+      goRight(MOTOR_SPEED_FAST);
+      delay(SMALL_TURN_TIME_MS);
+      goLeft(MOTOR_SPEED_FAST);
+      goRight(MOTOR_SPEED_FAST);
+      trackState = TRACK_STATE_CHANGE_L;
+    }
+    else if (rightChangeLineMark)
+    {
+      goLeft(MOTOR_SPEED_FAST);
+      goRight(MOTOR_SPEED_SLOW);
+      delay(SMALL_TURN_TIME_MS);
+      goLeft(MOTOR_SPEED_FAST);
+      goRight(MOTOR_SPEED_FAST);
+      trackState = TRACK_STATE_CHANGE_R;
+    }
+  }
+  
+  if ((trackState == TRACK_STATE_CHANGE_L) || (trackState == TRACK_STATE_CHANGE_R))
+  {
+    if (onTrack)
+    {
+      // Back on track :)
+      trackState = TRACK_STATE_NORMAL;
+    }
+  }
+
+  if (trackState == TRACK_STATE_NORMAL)
+  {
+    if (rightFromTrack)
+    {
+      // Right side has priority.
+      goLeft(MOTOR_SPEED_FAST);
+      goRight(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
+  //Serial.print("R");
+    }
+    else if (leftFromTrack)
+    {
+      goLeft(onTrack ? MOTOR_SPEED_SLOW : MOTOR_MIN_SPEED);
+      goRight(MOTOR_SPEED_FAST);
+  //Serial.print("L");
+    }
+    else
+    {
+      goLeft(MOTOR_SPEED_FAST);
+      goRight(MOTOR_SPEED_FAST);
+  //Serial.print("=");
+    }
   }
 }
 
@@ -263,28 +322,52 @@ void sendTrigger()
   digitalWrite(PIN_ULTRASONIC_TRIG, LOW);
 }
 
-// -- When Start/Stop button pressed
 void onButtonPressed(uint8_t pinNr)
 {
-	if (liefcycleState == LIFECYCLE_STATE_READY)
+  if (pinNr == PIN_L2)
   {
-    Serial.println(F("Start"));
-    liefcycleState = LIFECYCLE_STATE_RUNNING;
-    hartbeat.onMs = 100;
-    hartbeat.offMs = 100;
+    leftChangeLineMark = true;
   }
-	else if (liefcycleState == LIFECYCLE_STATE_RUNNING)
+  else if (pinNr == PIN_R2)
   {
-    goRight(0);
-    goLeft(0);
-    Serial.println(F("Stop"));
-    liefcycleState = LIFECYCLE_STATE_READY;
-    hartbeat.onMs = 100;
-    hartbeat.offMs = 300;
+    rightChangeLineMark = true;
   }
 }
-// -- When Start/Stop button released
+
 void onButtonReleased(uint8_t pinNr)
 {
-  // Not used
+  if (pinNr == PIN_BUTTON)
+  {
+    // -- When Start/Stop button pressed
+    if (lifecycleState == LIFECYCLE_STATE_READY)
+    {
+      Serial.println(F("Start"));
+      lifecycleState = LIFECYCLE_STATE_RUNNING;
+      hartbeat.onMs = 100;
+      hartbeat.offMs = 100;
+      startTime = millis();
+    }
+    // else if (lifecycleState == LIFECYCLE_STATE_RUNNING)
+    // {
+    //   stop();
+    // }
+  }
+  else if (pinNr == PIN_L2)
+  {
+    leftChangeLineMark = false;
+  }
+  else if (pinNr == PIN_R2)
+  {
+    rightChangeLineMark = false;
+  }
+}
+
+void stop()
+{
+  goRight(0);
+  goLeft(0);
+  Serial.println(F("Stop"));
+  lifecycleState = LIFECYCLE_STATE_READY;
+  hartbeat.onMs = 700;
+  hartbeat.offMs = 700;
 }
