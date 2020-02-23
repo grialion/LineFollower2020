@@ -6,7 +6,6 @@
  */
 
 #include <Arduino.h>
-#include <FTDebouncer.h>
 #include <SoftTimer.h>
 #include <BlinkTask.h>
 
@@ -44,8 +43,14 @@ void sendTrigger();
 void goRight(int val);
 void goLeft(int val);
 void doAlways(Task* me);
+void debounce();
+void onButtonPressed(uint8_t pinNr);
 
-FTDebouncer pinDebouncer(100);
+int buttonState;             // the current reading from the input pin
+int lastReading = HIGH;   // the previous reading from the input pin
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+
 BlinkTask hartbeat(PIN_LED, 100, 300);
 Task alwaysTask(0, doAlways);
 
@@ -68,8 +73,7 @@ void setup()
   Serial.println();
   Serial.println(F("Starting up..."));
 
-//  pinMode(PIN_BUTTON, INPUT_PULLUP);
-  pinDebouncer.addPin(PIN_BUTTON, HIGH, INPUT_PULLUP);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
   pinMode(PIN_L2, INPUT);
   pinMode(PIN_L1, INPUT);
   pinMode(PIN_MD, INPUT);
@@ -91,7 +95,6 @@ void setup()
 
   hartbeat.onLevel = LOW;
   hartbeat.start();
-  pinDebouncer.init();
   attachInterrupt(PIN_ULTRASONIC_ECHO, echoChanged, CHANGE);
   SoftTimer.add(&alwaysTask);
   Serial.println("Ready.");
@@ -102,7 +105,7 @@ void doAlways(Task* me)
   int32_t distanceFromObject = getUltrasonicDistance();
 //  Serial.println(distanceFromObject);
 
-  pinDebouncer.run();
+  debounce();
   if (liefcycleState != LIFECYCLE_STATE_RUNNING)
   {
     return;
@@ -166,6 +169,36 @@ void doAlways(Task* me)
     goLeft(MOTOR_SPEED_FAST);
     goRight(MOTOR_SPEED_FAST);
 //Serial.print("=");
+  }
+}
+
+void debounce()
+{
+  int reading = digitalRead(PIN_BUTTON);
+
+  // check to see if you just pressed the button
+  // (i.e. the input went from LOW to HIGH), and you've waited long enough
+  // since the last press to ignore any noise:
+
+  // If the switch changed, due to noise or pressing:
+  if (reading != lastReading) {
+    // reset the debouncing timer
+    lastDebounceTime = millis();
+    // save the reading. Next time through the loop, it'll be the lastButtonState:
+    lastReading = reading;
+  }
+  else if ((millis() - lastDebounceTime) > debounceDelay) {
+    // whatever the reading is at, it's been there for longer than the debounce
+    // delay, so take it as the actual current state:
+
+    // if the button state has changed:
+    if (reading != buttonState) {
+      buttonState = reading;
+
+      if (buttonState == LOW) {
+        onButtonPressed(PIN_BUTTON);
+      }
+    }
   }
 }
 
@@ -279,8 +312,8 @@ void onButtonPressed(uint8_t pinNr)
     goLeft(0);
     Serial.println(F("Stop"));
     liefcycleState = LIFECYCLE_STATE_READY;
-    hartbeat.onMs = 100;
-    hartbeat.offMs = 300;
+    hartbeat.onMs = 700;
+    hartbeat.offMs = 700;
   }
 }
 // -- When Start/Stop button released
