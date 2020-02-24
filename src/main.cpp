@@ -46,7 +46,7 @@ void doAlways(Task* me);
 void debounce();
 void onButtonPressed(uint8_t pinNr);
 
-int buttonState;             // the current reading from the input pin
+int buttonState = HIGH;             // the current reading from the input pin
 int lastReading = HIGH;   // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
@@ -198,6 +198,9 @@ void debounce()
       if (buttonState == LOW) {
         onButtonPressed(PIN_BUTTON);
       }
+      else {
+        onButtonReleased(PIN_BUTTON);
+      }
     }
   }
 }
@@ -299,14 +302,7 @@ void sendTrigger()
 // -- When Start/Stop button pressed
 void onButtonPressed(uint8_t pinNr)
 {
-	if (liefcycleState == LIFECYCLE_STATE_READY)
-  {
-    Serial.println(F("Start"));
-    liefcycleState = LIFECYCLE_STATE_RUNNING;
-    hartbeat.onMs = 100;
-    hartbeat.offMs = 100;
-  }
-	else if (liefcycleState == LIFECYCLE_STATE_RUNNING)
+	if (liefcycleState == LIFECYCLE_STATE_RUNNING)
   {
     goRight(0);
     goLeft(0);
@@ -319,5 +315,11 @@ void onButtonPressed(uint8_t pinNr)
 // -- When Start/Stop button released
 void onButtonReleased(uint8_t pinNr)
 {
-  // Not used
+	if (liefcycleState == LIFECYCLE_STATE_READY)
+  {
+    Serial.println(F("Start"));
+    liefcycleState = LIFECYCLE_STATE_RUNNING;
+    hartbeat.onMs = 100;
+    hartbeat.offMs = 100;
+  }
 }
