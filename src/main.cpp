@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <SoftTimer.h>
 #include <BlinkTask.h>
+#include <PciManager.h>
+#include <Debouncer.h>
 
 #define PIN_LED 13
 
@@ -39,8 +41,8 @@ void goRight(int val);
 void goLeft(int val);
 void doAlways(Task* me);
 void debounce();
-void onButtonPressed(uint8_t pinNr);
-void onButtonReleased(uint8_t pinNr);
+void onButtonPressed();
+void onButtonReleased(unsigned long pressTimespan);
 void stop();
 
 int buttonState = HIGH;             // the current reading from the input pin
@@ -60,6 +62,7 @@ volatile unsigned long echoChangedTime;
 unsigned long lastOnTrack = 0;
 
 byte liefcycleState = LIFECYCLE_STATE_READY;
+Debouncer buttonDebouncer(PIN_BUTTON, MODE_CLOSE_ON_PUSH, onButtonPressed, onButtonReleased, true);
 
 void setup()
 {
@@ -71,7 +74,8 @@ void setup()
   Serial.println();
   Serial.println(F("Starting up..."));
 
-  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  buttonDebouncer.init();
+  PciManager.registerListener(PIN_BUTTON, &buttonDebouncer);
   pinMode(PIN_L2, INPUT);
   pinMode(PIN_L1, INPUT);
   pinMode(PIN_MD, INPUT);
@@ -101,7 +105,6 @@ void doAlways(Task* me)
   int32_t distanceFromObject = getUltrasonicDistance();
 //  Serial.println(distanceFromObject);
 
-  debounce();
   if (liefcycleState != LIFECYCLE_STATE_RUNNING)
   {
     return;
@@ -179,39 +182,6 @@ void doAlways(Task* me)
   }
 }
 
-void debounce()
-{
-  int reading = digitalRead(PIN_BUTTON);
-
-  // check to see if you just pressed the button
-  // (i.e. the input went from LOW to HIGH), and you've waited long enough
-  // since the last press to ignore any noise:
-
-  // If the switch changed, due to noise or pressing:
-  if (reading != lastReading) {
-    // reset the debouncing timer
-    lastDebounceTime = millis();
-    // save the reading. Next time through the loop, it'll be the lastButtonState:
-    lastReading = reading;
-  }
-  else if ((millis() - lastDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer than the debounce
-    // delay, so take it as the actual current state:
-
-    // if the button state has changed:
-    if (reading != buttonState) {
-      buttonState = reading;
-
-      if (buttonState == LOW) {
-        onButtonPressed(PIN_BUTTON);
-      }
-      else {
-        onButtonReleased(PIN_BUTTON);
-      }
-    }
-  }
-}
-
 void goRight(int val)
 {
   if (val != rightMotorValue)
@@ -248,11 +218,11 @@ void sendTrigger()
 }
 
 // -- When Start/Stop button pressed
-void onButtonPressed(uint8_t pinNr)
+void onButtonPressed()
 {
 }
 // -- When Start/Stop button released
-void onButtonReleased(uint8_t pinNr)
+void onButtonReleased(unsigned long pressTimespan)
 {
 	if (liefcycleState == LIFECYCLE_STATE_RUNNING)
   {
@@ -264,6 +234,7 @@ void onButtonReleased(uint8_t pinNr)
     liefcycleState = LIFECYCLE_STATE_RUNNING;
     hartbeat.onMs = 100;
     hartbeat.offMs = 100;
+    lastOnTrack = millis();
   }
 }
 

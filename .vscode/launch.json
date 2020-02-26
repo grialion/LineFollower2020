@@ -12,7 +12,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/build/ststm32/firmware.elf",
+            "executable": "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/build/uno/firmware.elf",
             "toolchainBinDir": "/Volumes/Data/ext/kelemenb/.platformio/packages/toolchain-atmelavr/bin",
             "preLaunchTask": {
                 "type": "PlatformIO",
@@ -24,7 +24,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/build/ststm32/firmware.elf",
+            "executable": "/Volumes/Data/work/electronics/Arduino/Projects/LineFollower/.pio/build/uno/firmware.elf",
             "toolchainBinDir": "/Volumes/Data/ext/kelemenb/.platformio/packages/toolchain-atmelavr/bin",
             "internalConsoleOptions": "openOnSessionStart"
         }
